@@ -2,9 +2,10 @@
 Domain-Guided Prefix Suppression
 log2(dmax − dmin + 1) = 6
 """
-import random
-import numpy as np
 import math
+import random
+
+import numpy as np
 
 Hash_table = {}
 ascii_start = 65
@@ -28,12 +29,13 @@ def sim_suppression(table_one_index, table_two_index):
 
     bit_one = math.ceil(math.log2(min_max_one[1]))
     bit_two = math.ceil(math.log2(min_max_two[1]))
-    in_shift, out_shift = 0, 0
+    in_shift1, out_shift1, in_shift2, out_shift2 = 0, 0, 0, 0
     if bit_one > bit_two:
-        in_shift = math.ceil(math.log2(min_max_two[1]) + 1)
+        out_shift1 = math.ceil(math.log2(min_max_two[1]) + 1)
     elif bit_two > bit_one:
-        out_shift = math.ceil(math.log2(min_max_one[1]) + 1)
-    join = sim_packing(numpy_array1, numpy_array2, in_shift, out_shift)
+        out_shift2 = math.ceil(math.log2(min_max_one[1]) + 1)
+    join = sim_packing(numpy_array1, numpy_array2, in_shift1, out_shift1, in_shift2, out_shift2)
+
 
 # void pack2_i32_i16_to_i32(i32* res, int n,
 # i32* col1, i32 b1, int ishl1, int oshr1, i32 m1,
@@ -45,13 +47,13 @@ def sim_suppression(table_one_index, table_two_index):
 # // Move to output positions
 # res[i] = (c1 << oshr1) | (c2 << oshr2);
 # } }
-def sim_packing(numpy_array1, numpy_array2, in_shift, out_shift):
+def sim_packing(numpy_array1, numpy_array2, in_shift1, out_shift1, in_shift2, out_shift2):
     join = []
     mask = 0xFFFFFFFFF
     for element1, element2 in zip(numpy_array1, numpy_array2):
-        bits1 = (element1 >> in_shift) & mask
-        bits2 = (element2 >> in_shift) & mask
-        join.append((bits1 << out_shift) | (bits2 << out_shift))
+        bits1 = (element1 >> in_shift1) & mask
+        bits2 = (element2 >> in_shift2) & mask
+        join.append((bits1 << out_shift1) | (bits2 << out_shift2))
     return join
 
 
@@ -68,7 +70,9 @@ def sim_packing(numpy_array1, numpy_array2, in_shift, out_shift):
 # // Stitch back together
 # res[i] = (c1 << oshl1) | (c2 << oshl2) + b;
 # } }
-def sim_unpacking():
+def sim_unpacking(res, in_shift1, out_shift1, in_shift2, out_shift2):
+
+
     pass
 
 

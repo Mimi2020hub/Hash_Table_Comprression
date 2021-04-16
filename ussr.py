@@ -3,7 +3,10 @@ Advanced Database system final project
 """
 import numpy as np
 import math
+import datetime
 
+header = datetime.datetime.now()
+header_byte = bytes(str(header), 'utf-8')
 Linear_hash_table = {}
 rows = 10
 columns = 10
@@ -45,7 +48,7 @@ def search_ussr(input_string):
     :param input_string: user input string for searching in the system
     """
     my_bytes = bytes(input_string, 'utf-8')
-    res, _, _, _ = handle_data_region_search(my_bytes)
+    res, _, _, _ = handle_data_region_search(my_bytes, True)
 
     if res:
         print(f'String {input_string} exists.')
@@ -86,7 +89,7 @@ def handle_data_region_insert(my_bytes, isExcess):
     :param isExcess: boolean value for handling whether the strings needs multiple blocks
     :return: return ture and code = 0 if inserted, else return false and error code = -1 | -2 | -3
     """
-    res, found_row, found_column, length = handle_data_region_search(my_bytes)
+    res, found_row, found_column, length = handle_data_region_search(my_bytes, False)
     if res:
         return True, -3
     if isExcess:
@@ -97,7 +100,10 @@ def handle_data_region_insert(my_bytes, isExcess):
 
         if check_is_full():
             return False, -1
-        handle_hash_table([current_empty[0], current_empty[1]], math.ceil(tmp_len / max_block_size))
+        handle_hash_table([current_empty[0], current_empty[1]], math.ceil(tmp_len / max_block_size),
+                          math.ceil(len(header_byte) / max_block_size))
+
+        insert_cold_area(len(header_byte), header_byte)
 
         for part in range(0, tmp_len, max_block_size):
             current_bytes = my_bytes[:max_block_size]
@@ -108,7 +114,10 @@ def handle_data_region_insert(my_bytes, isExcess):
     else:
         if check_is_full():
             return False, -1
-        handle_hash_table([current_empty[0], current_empty[1]], 1)
+        handle_hash_table([current_empty[0], current_empty[1]], 1,
+                          math.ceil(len(header_byte) / max_block_size))
+
+        insert_cold_area(len(header_byte), header_byte)
 
         Data_region[current_empty[0], current_empty[1]] = my_bytes
         if not check_block_available():
@@ -117,18 +126,24 @@ def handle_data_region_insert(my_bytes, isExcess):
     return True, 0
 
 
-def handle_data_region_search(my_bytes):
+def handle_data_region_search(my_bytes, is_skip):
     """
     The main function for handling search functions
 
     :param my_bytes: the byte array for the string that needs to search in the system
+    :param is_skip: boolean value for is needs to compare the hashes in code area
     :return: return true and the starting col, row and blocks of the data, else return false
     """
     chunks = [my_bytes[i:i + max_block_size] for i in range(0, len(my_bytes), max_block_size)]
     for pointer in Linear_hash_table.values():
-        row, column, length = pointer
+        row, column, length, skip = pointer
         current_row = row
         current_column = column
+        if is_skip:
+            for sp in range(skip):
+                current_row, current_column = get_next_hot_area(current_row, current_column)
+                if current_row < 0:
+                    return False, -1, -1, -1
         count = 0
         for index in range(length):
             if compare(Data_region[row][column], chunks[index], 'utf-8'):
@@ -164,7 +179,7 @@ def handle_data_region_delete(my_bytes):
     :return: return true is delete is success else return false
     """
     global Linear_hash_table
-    res, found_row, found_column, length = handle_data_region_search(my_bytes)
+    res, found_row, found_column, length = handle_data_region_search(my_bytes, True)
     if res:
         Linear_hash_table = {key: val for key, val in Linear_hash_table.items()
                              if val != [found_row, found_column, length]}
@@ -229,6 +244,38 @@ def check_block_available():
     return True
 
 
+def get_next_hot_area(row, column):
+    """
+    The helper function to skip the cold areas and get to the first hot area block
+
+    :return: return true if that is next block available, else return false
+    """
+    column += 1
+    if column >= columns:
+        row += 1
+        column = 0
+        if row >= rows:
+            return -1, -1
+    return row, column
+
+
+def insert_cold_area(cold_len, cold_bytes):
+    """
+
+    :param cold_len: the byte length of the cold area
+    :param cold_bytes: the bytes for the code area hashes
+    :return: return true and code 0 if cold area hashes is inserted successfully, else
+             return false and code -2 for not enough space
+    """
+    for part in range(0, cold_len, max_block_size):
+        current_bytes = cold_bytes[:max_block_size]
+        Data_region[current_empty[0], current_empty[1]] = current_bytes
+        if not check_block_available():
+            return False, -2
+        cold_bytes = cold_bytes[max_block_size:]
+    return True, 0
+
+
 def handle_hash_table_rebuild(number, minus):
     """
     The main function for handling hash table rebuild after update or delete happened in data region
@@ -262,14 +309,15 @@ def update_hash_table_index(array, minus):
     return {row + column: [row, column, length]}
 
 
-def handle_hash_table(value, length):
+def handle_hash_table(value, length, skip):
     """
     The main function for updating hash table after insertion of strings in the data region
 
     :param value:  contains the row, column for the current data byte array
     :param length: the block counts for the current data byte array
+    :param skip: blocks of hashes inside code area
     """
-    tmp_dic = {current_empty[0] + current_empty[1]: value + [length]}
+    tmp_dic = {current_empty[0] + current_empty[1]: value + [length, skip]}
     Linear_hash_table.update(tmp_dic)
 
 
