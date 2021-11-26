@@ -1,3 +1,5 @@
+Hash Table Compression during Query Evaluation
+
 To run the scripts: python ussr.py, python dgps.py
 
 We implement  Gubner et al. (2020)’s paper -- Efficient Query Processing with Optimistically Compressed Hash Tables & Strings in the USSR. This project focuses on the research problem of how to enhance representation of hash tables and the data within them to reduce memory consumption and improve query performance. We follow Gubner et al. (2020)’s hypothesis that shrinking hash tables through three complementary techniques – Domain-Guided Prefix Suppression, Optimistic Splitting and Unique Strings Self-aligned Region will lower memory footprint and increase query evaluation.
